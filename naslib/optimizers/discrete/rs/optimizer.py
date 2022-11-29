@@ -70,8 +70,6 @@ class RandomSearch(MetaOptimizer):
 
         self.sampled_archs.append(model)
         self._update_history(model)
-        
-        return model
 
         # required if we want to train the models and not only query.
         # architecture_i.parse()
