@@ -37,10 +37,11 @@ import torch.nn.functional as F
 
 
 class Network(nn.Module):
-    def __init__(self, spec, stem_out, num_stacks, num_mods, num_classes, bn=True):
+    def __init__(self, spec, stem_out, num_stacks, num_mods, num_classes, stem_in=3, bn=True):
         super(Network, self).__init__()
 
         self.spec = spec
+        self.stem_in = stem_in
         self.stem_out = stem_out
         self.num_stacks = num_stacks
         self.num_mods = num_mods
@@ -48,7 +49,7 @@ class Network(nn.Module):
 
         self.layers = nn.ModuleList([])
 
-        in_channels = 3
+        in_channels = stem_in
         out_channels = stem_out
 
         # initial stem convolution
