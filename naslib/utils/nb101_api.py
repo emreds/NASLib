@@ -87,14 +87,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import base64
 import copy
+import json
 import random
 import time
 import shelve
 import hashlib
 import _pickle as pickle
 import numpy as np
-
+import tensorflow as tf
+from naslib.utils import model_metrics_pb2
 
 class OutOfDomainError(Exception):
   """Indicates that the requested graph is outside of the search domain."""
@@ -141,6 +144,7 @@ class NASBench(object):
 
     # open the database
     if data_format == 'shelve':
+        print('shelve is being written')
         with shelve.open(dataset_file, 'r') as shelf:
           for module_hash in shelf:
             # Parse the data from the data file.
@@ -151,6 +155,7 @@ class NASBench(object):
 
             self.valid_epochs.update(set(computed_statistics.keys()))
     elif data_format == 'pickle':
+        print('pickle is being written')
         with open(dataset_file, 'rb') as f:
             data = pickle.load(f)
         for module_hash, stats in data.items():
@@ -158,6 +163,31 @@ class NASBench(object):
             self.computed_statistics[module_hash] = stats[1]
 
             self.valid_epochs.update(set(stats[1].keys()))
+    elif data_format == 'tfrecord':
+      for serialized_row in tf.compat.v1.python_io.tf_record_iterator(dataset_file):
+        # Parse the data from the data file.
+        module_hash, epochs, raw_adjacency, raw_operations, raw_metrics = (
+          json.loads(serialized_row.decode('utf-8')))
+
+        dim = int(np.sqrt(len(raw_adjacency)))
+        adjacency = np.array([int(e) for e in list(raw_adjacency)], dtype=np.int8)
+        adjacency = np.reshape(adjacency, (dim, dim))
+        operations = raw_operations.split(',')
+        metrics = model_metrics_pb2.ModelMetrics.FromString(
+          base64.b64decode(raw_metrics))
+
+
+        if module_hash not in self.fixed_statistics:
+          # First time seeing this module, initialize fixed statistics.
+          new_entry = {}
+          new_entry['module_adjacency'] = adjacency
+          new_entry['module_operations'] = operations
+          new_entry['trainable_parameters'] = metrics.trainable_parameters
+          self.fixed_statistics[module_hash] = new_entry
+          self.computed_statistics[module_hash] = {}
+
+        self.valid_epochs.add(epochs)
+
     else:
         raise Exception('Data format not supported')
 
