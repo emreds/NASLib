@@ -165,6 +165,10 @@ set load_labeled=True
 load_labeled = True if config.search_space in ["nasbench301", "nlp"] else False
 dataset_api = get_dataset_api(config.search_space, config.dataset)
 
+
+# LCZ-42
+load_labeled = True
+
 # initialize the search space and predictor
 utils.set_seed(config.seed)
 predictor = supported_predictors[config.predictor]
