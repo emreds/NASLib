@@ -615,7 +615,7 @@ class Trainer(object):
             with codecs.open(
                 os.path.join(self.config.save, "errors.json"), "w", encoding="utf-8"
             ) as file:
-                json.dump(self.search_trajectory, file, separators=(",", ":"))
+                json.dump(self.errors_dict, file, separators=(",", ":"), cls=utils.NumpyArrayEncoder)
         else:
             with codecs.open(
                 os.path.join(self.config.save, "errors.json"), "w", encoding="utf-8"
@@ -623,4 +623,4 @@ class Trainer(object):
                 lightweight_dict = copy.deepcopy(self.search_trajectory)
                 for key in ["arch_eval", "train_loss", "valid_loss", "test_loss"]:
                     lightweight_dict.pop(key)
-                json.dump([self.config, lightweight_dict], file, separators=(",", ":"))
+                json.dump([self.config, lightweight_dict], file, separators=(",", ":"), cls=utils.NumpyArrayEncoder)
