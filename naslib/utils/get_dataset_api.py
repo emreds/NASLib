@@ -48,8 +48,22 @@ def get_nasbench101_api(dataset=None):
     # load nasbench101
     import naslib.utils.nb101_api as api
 
+    dataset_file = None
+    if dataset == 'cifar10':
+        dataset_file = "nasbench_only108.pkl"
+    elif dataset == 'so2sat_lcz42_micro':
+        dataset_file = "database_pickle_micro.pickle"
+    elif dataset == 'so2sat_lcz42_macro':
+        dataset_file = "database_pickle_macro.pickle"
+    elif dataset == 'so2sat_lcz42_latency':
+        dataset_file = "database_pickle_latency.pickle"
+    elif dataset == 'so2sat_lcz42_MACs':
+        dataset_file = "database_pickle_MACs.pickle"
+    else:
+        pass
+
     nb101_datapath = os.path.join(
-        get_project_root(), "data", "nasbench_only108.pkl")
+        get_project_root(), "data", dataset_file)
     assert os.path.exists(nb101_datapath), f"Could not find {nb101_datapath}. Please download nasbench_only108.pk \
 from https://drive.google.com/drive/folders/1rwmkqyij3I24zn5GSO6fGv2mzdEfPIEa"
 

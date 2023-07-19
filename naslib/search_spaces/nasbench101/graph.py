@@ -89,7 +89,8 @@ class NasBench101SearchSpace(Graph):
         Query results from nasbench 101
         """
         assert isinstance(metric, Metric)
-        assert dataset in ["cifar10", None], "Unknown dataset: {}".format(dataset)
+        assert dataset in ["cifar10", "so2sat_lcz42_micro", "so2sat_lcz42_macro",
+                           "so2sat_lcz42_latency", "so2sat_lcz42_MACs", None], "Unknown dataset: {}".format(dataset)
 
         if metric in [Metric.ALL, Metric.HP]:
             raise NotImplementedError()
@@ -181,6 +182,47 @@ class NasBench101SearchSpace(Graph):
 
     def get_arch_iterator(self, dataset_api: dict) -> Iterator:
         return dataset_api["nb101_data"].hash_iterator()
+
+
+    def load_labeled_architecture(self, dataset_api: dict = None) -> None:
+        """
+        This is meant to be called by a new NasBench301SearchSpace() object
+        (one that has not already been discretized).
+        It samples a random architecture from the nasbench301 training data,
+        and updates the graph object to match the architecture.
+        """
+        local_dict_hash = dataset_api['nb101_data'].hash_iterator()
+        local_dict_hash = [*local_dict_hash][2:]
+        sampled_hash = random.choice(local_dict_hash)
+
+        dict_specs, _ = dataset_api['nb101_data'].get_metrics_from_hash(sampled_hash)
+        matrix_local = dict_specs['module_adjacency'].copy()
+        ops_local = dict_specs['module_operations'].copy()
+
+        self.set_spec({"matrix": np.array(matrix_local), "ops": ops_local})
+
+        from naslib.utils.nb101_api import ModelSpec
+        #import ipdb
+        #ipdb.set_trace()
+
+
+        local_spec_object = ModelSpec(matrix_local, ops_local)
+        assert dataset_api['nb101_data'].is_valid(local_spec_object)
+
+
+        #while True:
+        #    matrix = np.random.choice([0, 1], size=(NUM_VERTICES, NUM_VERTICES))
+        #    matrix = np.triu(matrix, 1)
+        #    ops = np.random.choice(OPS, size=NUM_VERTICES).tolist()
+        #    ops[0] = INPUT
+        #    ops[-1] = OUTPUT
+
+        #    spec = dataset_api["api"].ModelSpec(matrix=matrix, ops=ops)
+        #    if dataset_api["nb101_data"].is_valid(spec):
+        #        break
+
+        #self.set_spec({"matrix": matrix, "ops": ops})
+
 
     def sample_random_labeled_architecture(self) -> None:
         assert self.labeled_archs is not None, "Labeled archs not provided to sample from"

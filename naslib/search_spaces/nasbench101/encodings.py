@@ -30,12 +30,22 @@ def get_paths(spec):
     """
     matrix, ops = spec["matrix"], spec["ops"]
     paths = []
-    for j in range(0, NUM_VERTICES):
+
+    # for LCZ-42
+    local_num_vertices = NUM_VERTICES
+    if matrix.shape[0] < local_num_vertices:
+        local_num_vertices = matrix.shape[0]
+    #print(matrix)
+
+    for j in range(0, local_num_vertices):
+        #import ipdb
+        #ipdb.set_trace()
+        #print(matrix[0][:], 0, j, len(matrix[0][:]))
         paths.append([[]]) if matrix[0][j] else paths.append([])
 
     # create paths sequentially
-    for i in range(1, NUM_VERTICES - 1):
-        for j in range(1, NUM_VERTICES):
+    for i in range(1, local_num_vertices - 1):
+        for j in range(1, local_num_vertices):
             if matrix[i][j]:
                 for path in paths[i]:
                     paths[j].append([*path, ops[i]])
@@ -81,13 +91,27 @@ def encode_adj(spec):
     compute adjacency matrix + op list encoding
     """
     matrix, ops = spec["matrix"], spec["ops"]
-    op_dict = {CONV1X1: [0, 0, 1], CONV3X3: [0, 1, 0], MAXPOOL3X3: [1, 0, 0]}
+    op_dict = {CONV1X1: [0, 0, 1], CONV3X3: [0, 1, 0], MAXPOOL3X3: [1, 0, 0], 'Missing_OP': [-1, -1, -1]}
+
+    #print(ops)
+    # for LCZ-42
+    local_num_vertices = NUM_VERTICES
+    if matrix.shape[0] < local_num_vertices:
+        local_num_vertices = matrix.shape[0]
+
     encoding = []
     for i in range(NUM_VERTICES - 1):
         for j in range(i + 1, NUM_VERTICES):
-            encoding.append(matrix[i][j])
+            if i >= local_num_vertices or j >= local_num_vertices:
+                encoding.append(-1)
+            else:
+                encoding.append(matrix[i][j])
     for i in range(1, NUM_VERTICES - 1):
-        encoding = [*encoding, *op_dict[ops[i]]]
+        if i >= local_num_vertices - 1:
+            encoding = [*encoding, *op_dict['Missing_OP']]
+        else:
+            encoding = [*encoding, *op_dict.get(ops[i], [])]
+    encoding = np.array(encoding)
     return encoding
 
 
@@ -98,11 +122,12 @@ def encode_gcn(spec):
     """
     matrix, ops = spec["matrix"], spec["ops"]
     op_map = [OUTPUT, INPUT, *OPS]
+
     ops_onehot = np.array(
         [[i == op_map.index(op) for i in range(len(op_map))] for op in ops],
         dtype=np.float32,
     )
-
+    print(matrix.shape)
     dic = {
         "num_vertices": 7,
         "adjacency": matrix,
@@ -119,11 +144,22 @@ def encode_bonas(spec):
     a list of categorical ops starting from 0
     """
     matrix, ops = spec["matrix"], spec["ops"]
-    op_map = [INPUT, *OPS, OUTPUT]
+    op_map = [INPUT, *OPS, 'Missing_OP', OUTPUT]
+
+
+    if len(ops) < NUM_VERTICES:
+        ops.append('Missing_OP')
+
     ops_onehot = np.array(
         [[i == op_map.index(op) for i in range(len(op_map))] for op in ops],
         dtype=np.float32,
     )
+    #import ipdb
+    #ipdb.set_trace()
+
+    ## Temporary: provide a fixed sized encoding to deal with smaller number of nodes
+    #matrix = np.zeros((7,7))
+    assert False
 
     matrix = add_global_node(matrix, True)
     ops_onehot = add_global_node(ops_onehot, False)

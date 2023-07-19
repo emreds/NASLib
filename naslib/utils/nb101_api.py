@@ -197,12 +197,21 @@ class NASBench(object):
     Raises:
       OutOfDomainError: if model_spec or num_epochs is outside the search space.
     """
+    #print('Query:', model_spec, epochs, self.valid_epochs, epochs in self.valid_epochs, str(epochs) in self.valid_epochs)
     if epochs not in self.valid_epochs:
       raise OutOfDomainError('invalid number of epochs, must be one of %s'
                              % self.valid_epochs)
 
+    #import ipdb
+    #ipdb.set_trace()
+
     fixed_stat, computed_stat = self.get_metrics_from_spec(model_spec)
-    sampled_index = random.randint(0, self.config['num_repeats'] - 1)
+
+    if True: #LCZ42 - only one seed per model
+      sampled_index = 0
+    else:
+      sampled_index = random.randint(0, self.config['num_repeats'] - 1)
+
     computed_stat = computed_stat[epochs][sampled_index]
 
     data = {}
