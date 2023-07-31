@@ -16,6 +16,12 @@ from naslib.utils import generate_kfold, cross_validation
 logger = logging.getLogger(__name__)
 
 
+class NumpyFloatValuesEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.float32):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)
+
 class PredictorEvaluator(object):
     """
     This class will evaluate a chosen predictor based on
@@ -60,7 +66,7 @@ class PredictorEvaluator(object):
         if self.search_space.get_type() == "nasbench101":
             self.full_lc = False
             self.hyperparameters = False
-        elif self.search_space.get_type() in ["nasbench201", "darts", 
+        elif self.search_space.get_type() in ["nasbench201", "nasbench301",
                                               "nlp", "transbench101", 
                                               "asr"]:
             self.full_lc = True
@@ -340,7 +346,6 @@ class PredictorEvaluator(object):
         """
 
     def evaluate(self):
-
         self.predictor.pre_process()
 
         logger.info("Load the test set")
@@ -523,6 +528,8 @@ class PredictorEvaluator(object):
 
         return best_hyperparams.copy(), best_score
 
+
+
     def _log_to_json(self):
         """log statistics to json file"""
         if not os.path.exists(self.config.save):
@@ -536,5 +543,4 @@ class PredictorEvaluator(object):
                         res[key] = int(value)
                     if type(value) == np.float32 or type(value) == np.float64:
                         res[key] = float(value)
-
-            json.dump(self.results, file, separators=(",", ":"))
+            json.dump(self.results, file, separators=(",", ":"), cls=NumpyFloatValuesEncoder)
