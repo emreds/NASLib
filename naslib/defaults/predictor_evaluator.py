@@ -5,6 +5,7 @@ import logging
 import os
 import numpy as np
 import copy
+import joblib
 import torch
 from scipy import stats
 from sklearn import metrics
@@ -12,6 +13,7 @@ import math
 
 from naslib.search_spaces.core.query_metrics import Metric
 from naslib.utils import generate_kfold, cross_validation
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ class PredictorEvaluator(object):
         self.metric = Metric.VAL_ACCURACY
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.results = [config]
+        self.save_predictor = self.config.save_predictor
 
         # mutation parameters
         self.uniform_random = config.uniform_random
@@ -298,6 +301,9 @@ class PredictorEvaluator(object):
             self.predictor.set_hyperparams(hyperparams)
 
         self.predictor.fit(xtrain, ytrain, train_info)
+        if self.save_predictor: 
+            joblib.dump(self.predictor, f"xgb_model_{self.dataset}_{len(ytrain)}_seed_{self.config.seed}.pkl")
+            
         hyperparams = self.predictor.get_hyperparams()
 
         fit_time_end = time.time()
@@ -331,6 +337,9 @@ class PredictorEvaluator(object):
         )
         print("full ytest", results_dict["full_ytest"])
         print("full testpred", results_dict["full_testpred"])
+        
+        print("THIS IS ytest", ytest[0])
+        print("THIS IS xtest", xtest[0])
         # end specific code for zero-cost experiments.
         
         # print entire results dict:

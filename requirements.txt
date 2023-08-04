@@ -1,5 +1,5 @@
 ConfigSpace>=0.4.17
-pyyaml==5.4.1
+pyyaml
 networkx==2.6.3
 numpy==1.21.5; python_version <= '3.7'
 numpy>=1.22.0; python_version > '3.7'
@@ -17,7 +17,7 @@ pyro-ppl==1.6.0
 scipy==1.4.1
 
 # additional from setup.py prev
-tqdm==4.61.1
+tqdm
 scikit-learn==1.0.2
 scikit-image==0.19.2
 pytorch-msssim==0.2.1
