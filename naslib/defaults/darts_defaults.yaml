@@ -1,8 +1,8 @@
 dataset: cifar10
 seed: 99
-search_space: nasbench101
+search_space: nasbench201
 out_dir: run
-optimizer: Bananas
+optimizer: darts
 
 search:
   checkpoint_freq: 5
@@ -27,7 +27,7 @@ search:
   arch_weight_decay: 0.001
   output_weights: True
   
-  fidelity: 108
+  fidelity: 200
 
   # GDAS
   tau_max: 10

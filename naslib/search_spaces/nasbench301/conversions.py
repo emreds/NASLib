@@ -1,11 +1,10 @@
 from collections import namedtuple
 
-
 Genotype = namedtuple("Genotype", "normal normal_concat reduce reduce_concat")
 
 """
 NASLib uses four representations of darts architectures:
-'naslib': the DARTSSearchSpace object
+'naslib': the NasBench301SearchSpace object
 'genotype': representation used in the original DARTS paper
 'compact': representation used in [Li and Talwalkar] and BANANAS (smallest size)
 'config': representation used in nasbench301, based on ConfigSpace
@@ -17,8 +16,8 @@ This file contains all 12 types of conversions from one represenation to another
 def get_cell_of_type(naslib_object, cell_type):
     for node in naslib_object.nodes:
         if (
-            "subgraph" in naslib_object.nodes[node]
-            and naslib_object.nodes[node]["subgraph"].name == cell_type
+                "subgraph" in naslib_object.nodes[node]
+                and naslib_object.nodes[node]["subgraph"].name == cell_type
         ):
             return naslib_object.nodes[node]["subgraph"]
 
@@ -57,15 +56,9 @@ def convert_naslib_to_genotype(naslib_object):
 
     return Genotype(
         normal=converted_cells[0],
-        normal_concat=[
-            2,
-            3,
-            4,
-            5,
-            6,
-        ],  # Why is this [2, 3, 4, 5, 6] instead of [2, 3, 4, 5]?
+        normal_concat=[2, 3, 4, 5],
         reduce=converted_cells[1],
-        reduce_concat=[4, 5, 6],  # Why is this [4, 5, 6] instead of [2, 3, 4, 5]?
+        reduce_concat=[2, 3, 4, 5],
     )
 
 
@@ -73,7 +66,7 @@ def convert_genotype_to_naslib(genotype, naslib_object):
     """
     Converts the genotype representation to a naslib object
     input: genotype is the genotype representation
-    naslib_object is an empty DARTSSearchSpace() object.
+    naslib_object is an empty NasBench301SearchSpace() object.
     Do not call this method with a naslib object that has already been
     discretized (i.e., all but 2 incoming edges for each node are pruned).
 
@@ -84,13 +77,13 @@ def convert_genotype_to_naslib(genotype, naslib_object):
     """
     genotype_to_ops = {
         "skip_connect": ("Identity", "FactorizedReduce"),
-        "sep_conv_3x3": ("SepConv3x3"),
-        "dil_conv_3x3": ("DilConv3x3"),
-        "sep_conv_5x5": ("SepConv5x5"),
-        "dil_conv_5x5": ("DilConv5x5"),
-        "avg_pool_3x3": ("AvgPool"),
-        "max_pool_3x3": ("MaxPool"),
-        "zero": ("Zero"),
+        "sep_conv_3x3": "SepConv3x3",
+        "dil_conv_3x3": "DilConv3x3",
+        "sep_conv_5x5": "SepConv5x5",
+        "dil_conv_5x5": "DilConv5x5",
+        "avg_pool_3x3": "AvgPool",
+        "max_pool_3x3": "MaxPool",
+        # "zero": ("Zero"),
     }
     cell_names = ["normal_cell", "reduction_cell"]
 
@@ -110,8 +103,8 @@ def convert_genotype_to_naslib(genotype, naslib_object):
         if (edge.head, edge.tail) in edge_op_dict[edge.data.cell_name]:
             for i, op in enumerate(edge.data.op):
                 if (
-                    op.get_op_name
-                    in edge_op_dict[edge.data.cell_name][(edge.head, edge.tail)]
+                        op.get_op_name
+                        in edge_op_dict[edge.data.cell_name][(edge.head, edge.tail)]
                 ):
                     index = i
                     break
@@ -152,7 +145,7 @@ def convert_genotype_to_config(genotype):
         n = 2
         for node_idx in range(4):
             end = start + n
-            ops = cell[2 * node_idx : 2 * node_idx + 2]
+            ops = cell[2 * node_idx: 2 * node_idx + 2]
 
             # get edge idx
             edges = {
@@ -206,9 +199,9 @@ def convert_config_to_genotype(config):
 
     return Genotype(
         normal=genotype[0],
-        normal_concat=[2, 3, 4, 5, 6],
+        normal_concat=[2, 3, 4, 5],
         reduce=genotype[1],
-        reduce_concat=[4, 5, 6],
+        reduce_concat=[2, 3, 4, 5],
     )
 
 
@@ -262,13 +255,6 @@ def convert_compact_to_genotype(compact):
         reduce=genotype[1],
         reduce_concat=[2, 3, 4, 5],
     )
-    # TODO: need to check with Colin and/or Arber
-    #  return Genotype(
-    #     normal = genotype[0],
-    #     normal_concat = [2, 3, 4, 5, 6],
-    #     reduce = genotype[1],
-    #     reduce_concat = [4, 5, 6]
-    # )
 
 
 def make_compact_mutable(compact):
@@ -282,6 +268,7 @@ def make_compact_mutable(compact):
                 arch_list[-1][-1].append(num)
     return arch_list
 
+
 def make_compact_immutable(compact):
     # convert list to tuple so that it is hashable
     arch_list = []
@@ -291,6 +278,7 @@ def make_compact_immutable(compact):
             arch_list[-1].append(tuple(pair))
         arch_list[-1] = tuple(arch_list[-1])
     return tuple(arch_list)
+
 
 def convert_naslib_to_config(naslib_object):
     genotype = convert_naslib_to_genotype(naslib_object)

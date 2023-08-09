@@ -1,6 +1,9 @@
 import numpy as np
 import logging
 
+from naslib.search_spaces.nasbench101.conversions import convert_tuple_to_spec
+from naslib.utils.encodings import EncodingType
+
 """
 These are the encoding methods for nasbench101.
 The plan is to unify encodings across all search spaces.
@@ -77,14 +80,38 @@ def encode_adj(spec):
     """
     compute adjacency matrix + op list encoding
     """
-    matrix, ops = spec["matrix"], spec["ops"]
-    op_dict = {CONV1X1: [0, 0, 1], CONV3X3: [0, 1, 0], MAXPOOL3X3: [1, 0, 0]}
+    matrix, ops = spec["matrix"].copy(), spec["ops"].copy()
+    op_dict = {CONV1X1: [0, 0, 1], CONV3X3: [0, 1, 0], MAXPOOL3X3: [1, 0, 0], "MISSING_OP": [0, 0, 0]}
     encoding = []
+    # In the encoding of nb101, there are architectures with less than 7 operations. 
+    # This is causing problems during the binary encoding. 
+    # To fix this, we add a missing op to the matrix and ops list.
+    # Since the first or the last op are always input and output.
+    if matrix.shape[0] < NUM_VERTICES:
+        available_indices = sorted(list(range(2, NUM_VERTICES - 1)))
+        num_missing_ops = NUM_VERTICES - matrix.shape[0]
+        selected_indices = np.random.choice(available_indices, size=num_missing_ops, replace=False)
+    
+        for missing_op_idx in selected_indices:
+            # Insert a new column of zeros at missing_op_idx
+            new_column = np.zeros((matrix.shape[0], 1), dtype=np.int8)
+            matrix = np.concatenate((matrix[:, :missing_op_idx], new_column, matrix[:, missing_op_idx:]), axis=1)
+        
+        for missing_op_idx in selected_indices:
+            # Insert a new row of zeros at missing_op_idx
+            new_row = np.zeros((1, NUM_VERTICES), dtype=np.int8)
+            matrix = np.concatenate((matrix[:missing_op_idx], new_row, matrix[missing_op_idx:]))
+
+            # Insert MISSING_OP into the ops list
+            ops.insert(missing_op_idx, "MISSING_OP")
+    
     for i in range(NUM_VERTICES - 1):
         for j in range(i + 1, NUM_VERTICES):
             encoding.append(matrix[i][j])
+            
     for i in range(1, NUM_VERTICES - 1):
         encoding = [*encoding, *op_dict[ops[i]]]
+    
     return encoding
 
 
@@ -158,23 +185,22 @@ def encode_seminas(spec):
     return dic
 
 
-def encode_101(arch, encoding_type="path"):
-
+def encode_101(arch, encoding_type=EncodingType.PATH):
     spec = arch.get_spec()
 
-    if encoding_type == "path":
+    if encoding_type == EncodingType.PATH:
         return encode_paths(spec=spec)
 
-    elif encoding_type == "adjacency_one_hot":
+    elif encoding_type == EncodingType.ADJACENCY_ONE_HOT:
         return encode_adj(spec=spec)
 
-    elif encoding_type == "gcn":
+    elif encoding_type == EncodingType.GCN:
         return encode_gcn(spec=spec)
 
-    elif encoding_type == "seminas":
+    elif encoding_type == EncodingType.SEMINAS:
         return encode_seminas(spec=spec)
 
-    elif encoding_type == "bonas":
+    elif encoding_type == EncodingType.BONAS:
         return encode_bonas(spec=spec)
 
     else:
@@ -185,3 +211,32 @@ def encode_101(arch, encoding_type="path"):
             )
         )
         raise NotImplementedError()
+
+
+def encode_101_spec(spec, encoding_type=EncodingType.PATH):
+    if encoding_type == EncodingType.PATH:
+        return encode_paths(spec=spec)
+
+    elif encoding_type == EncodingType.ADJACENCY_ONE_HOT:
+        return encode_adj(spec=spec)
+
+    elif encoding_type == EncodingType.GCN:
+        return encode_gcn(spec=spec)
+
+    elif encoding_type == EncodingType.SEMINAS:
+        return encode_seminas(spec=spec)
+
+    elif encoding_type == EncodingType.BONAS:
+        return encode_bonas(spec=spec)
+
+    else:
+        logger.info(f'{encoding_type} is not yet implemented as an encoding type for nb101')
+        raise NotImplementedError()
+
+
+def encode_spec(spec, encoding_type=EncodingType.ADJACENCY_ONE_HOT):
+    if isinstance(spec, tuple):
+        spec = convert_tuple_to_spec(spec)
+        return encode_101_spec(spec, encoding_type=encoding_type)
+    else:
+        raise NotImplementedError(f'No implementation found for encoding search space nb101 with {encoding_type}')

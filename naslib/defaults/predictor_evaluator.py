@@ -9,6 +9,7 @@ import torch
 from scipy import stats
 from sklearn import metrics
 import math
+import joblib
 
 from naslib.search_spaces.core.query_metrics import Metric
 from naslib.utils import generate_kfold, cross_validation
@@ -23,9 +24,10 @@ class PredictorEvaluator(object):
     initialization times and query times.
     """
 
-    def __init__(self, predictor, config=None):
+    def __init__(self, predictor, metric, config=None):
 
         self.predictor = predictor
+        self.metric = metric
         self.config = config
         self.experiment_type = config.experiment_type
 
@@ -37,9 +39,10 @@ class PredictorEvaluator(object):
         self.max_hpo_time = config.max_hpo_time
 
         self.dataset = config.dataset
-        self.metric = Metric.VAL_ACCURACY
+        #self.metric = Metric.VAL_ACCURACY
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.results = [config]
+        self.save_predictor = self.config.save_predictor
 
         # mutation parameters
         self.uniform_random = config.uniform_random
@@ -60,7 +63,7 @@ class PredictorEvaluator(object):
         if self.search_space.get_type() == "nasbench101":
             self.full_lc = False
             self.hyperparameters = False
-        elif self.search_space.get_type() in ["nasbench201", "darts", 
+        elif self.search_space.get_type() in ["nasbench201", "nasbench301",
                                               "nlp", "transbench101", 
                                               "asr"]:
             self.full_lc = True
@@ -114,7 +117,7 @@ class PredictorEvaluator(object):
                     )[hp]
         return accuracy, train_time, info_dict
 
-    def load_dataset(self, load_labeled=False, data_size=10, arch_hash_map={}):
+    def load_dataset(self, load_labeled=False, data_size=10, arch_hash_map={}, metric=Metric.VAL_ACCURACY):
         """
         There are two ways to load an architecture.
         load_labeled=False: sample a random architecture from the search space.
@@ -129,6 +132,7 @@ class PredictorEvaluator(object):
         xdata = []
         ydata = []
         info = []
+        val_acc = []
         train_times = []
         while len(xdata) < data_size:
             if not load_labeled:
@@ -139,16 +143,21 @@ class PredictorEvaluator(object):
                 arch.load_labeled_architecture(dataset_api=self.dataset_api)
 
             arch_hash = arch.get_hash()
-            if False: # removing this for consistency, for now
-                continue
+            if arch in arch_hash_map:
+                print("This arch has already been sampled!")
             else:
                 arch_hash_map[arch_hash] = True
 
             accuracy, train_time, info_dict = self.get_full_arch_info(arch)
             xdata.append(arch)
-            ydata.append(accuracy)
+            val_acc.append(accuracy)
             info.append(info_dict)
             train_times.append(train_time)
+            
+            if metric == Metric.VAL_ACCURACY:
+                ydata.append(accuracy)
+            elif metric == Metric.TRAIN_TIME:
+                ydata.append(train_time)
 
         return [xdata, ydata, info, train_times], arch_hash_map
 
@@ -292,6 +301,10 @@ class PredictorEvaluator(object):
             self.predictor.set_hyperparams(hyperparams)
 
         self.predictor.fit(xtrain, ytrain, train_info)
+        if self.save_predictor: 
+            joblib.dump(self.predictor, f"{self.config['predictor']}_model_{self.dataset}_{len(ytrain)}_seed_{self.config.seed}_{self.config['model_metric']}.pkl")
+
+
         hyperparams = self.predictor.get_hyperparams()
 
         fit_time_end = time.time()
@@ -346,8 +359,9 @@ class PredictorEvaluator(object):
         logger.info("Load the test set")
         if self.uniform_random:
             test_data, arch_hash_map = self.load_dataset(
-                load_labeled=self.load_labeled, data_size=self.test_size
+                load_labeled=self.load_labeled, data_size=self.test_size, metric=self.metric
             )
+            print("Loads the uniform random dataset.")
         else:
             test_data, arch_hash_map = self.load_mutated_test(data_size=self.test_size)
 
@@ -362,6 +376,7 @@ class PredictorEvaluator(object):
                 load_labeled=self.load_labeled,
                 data_size=max_train_size,
                 arch_hash_map=arch_hash_map,
+                metric=self.metric
             )
         else:
             full_train_data, _ = self.load_mutated_train(
@@ -537,4 +552,14 @@ class PredictorEvaluator(object):
                     if type(value) == np.float32 or type(value) == np.float64:
                         res[key] = float(value)
 
-            json.dump(self.results, file, separators=(",", ":"))
+            json.dump(self.results, file, separators=(",", ":"), cls=NumpyArrayEncoder)
+            
+class NumpyArrayEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, (np.int32, np.int64)):
+                return int(obj)
+            elif isinstance(obj, (np.float32, np.float64)):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return json.JSONEncoder.default(self, obj)
