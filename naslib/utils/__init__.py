@@ -265,14 +265,15 @@ def get_config_from_args(args=None, config_type="nas"):
                 config.seed,
             )
         else:
+            print(f"config attributes: {config}")
             config.save = "{}/{}/{}/{}/{}/{}/{}".format(
                 config.out_dir,
                 config.dataset,
                 "predictors",
                 config.predictor,
+                config.model_metric,
                 config.seed,
-                config.train_size_single,
-                config.model_metric
+                config.train_size_single
             )
     elif config_type == "nas_predictor":
         config.search.seed = config.seed

@@ -16,6 +16,7 @@ fidelity_list:
 fidelity_single: 5
 hparams_from_file: predictor_hpo_configs/hpo_config_1.json
 max_hpo_time: 0
+model_metric: val_accuracy
 out_dir: run
 predictor: xgb
 save_predictor: true
@@ -27,8 +28,7 @@ search:
   data_size: 25000
   train_portion: 0.7
 search_space: nasbench101
-model_metric: train_time
-seed: 12
+seed: 21
 test_size: 100
 train_size_list:
 - 5
@@ -39,5 +39,5 @@ train_size_list:
 - 71
 - 121
 - 205
-train_size_single: 1000
+train_size_single: 700
 uniform_random: 1

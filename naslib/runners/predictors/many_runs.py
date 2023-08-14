@@ -4,8 +4,6 @@ import yaml
 
 from naslib import utils
 
-config = utils.get_config_from_args(config_type="predictor")
-
 
 def update_yaml_value(yaml_file: str, keys: list, values: list) -> None:
     # Read the YAML file and load its contents into a dictionary
@@ -38,15 +36,16 @@ def trigger_job(command_to_run: str) -> None:
 
 
 if __name__ == "__main__":
-    yaml_file_path = '/p/project/hai_nasb_eo/emre/rene_setup/NASLib/naslib/runners/predictors/new_predictor.yaml'
-    keys_to_update = ["seed", "train_size_single"]
-    command_to_run = "python runner.py --config-file ./new_predictor.yaml"
+    yaml_file_path = "/p/project/hai_nasb_eo/emre/data_centric/NASLib/naslib/runners/predictors/new_predictor.yaml"
+    keys_to_update = ["model_metric", "seed", "train_size_single"]
+    command_to_run = f"python runner.py --config-file {yaml_file_path}"
 
-    for seed in [81]:
-        for train_size in [300, 500, 1000]:
-            values = [seed, train_size]
-            update_yaml_value(yaml_file_path, keys_to_update, values)
-            print(f"Running now with seed {seed} and train size {train_size}")
-            trigger_job(command_to_run)
+    for model_metric in ["val_accuracy", "train_time"]:
+        for seed in [17, 21, 42, 81, 123]:
+            for train_size in [300, 400, 500, 600, 700, 800, 900, 1000]:
+                values = [model_metric, seed, train_size]
+                update_yaml_value(yaml_file_path, keys_to_update, values)
+                print(f"Running now with \n model_metric: {model_metric} \n seed: {seed} \n train_size: {train_size} \n")
+                trigger_job(command_to_run)
         
     print("DONE!")

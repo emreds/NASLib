@@ -279,7 +279,6 @@ class NasBench101SearchSpace(Graph):
                 new_matrix = copy.deepcopy(matrix)
                 new_ops = copy.deepcopy(ops)
                 new_matrix[src][dst] = 1 - new_matrix[src][dst]
-                new_spec = {"matrix": new_matrix, "ops": new_ops}
 
                 if matrix[src][dst] and is_valid_edge(matrix, (src, dst)):
                     nbhd = add_to_nbhd(new_matrix, new_ops, nbhd)
